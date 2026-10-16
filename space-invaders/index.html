@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070b1a" />
+    <title>Space Invaders // Arcade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!--
+    THESIS: una recreativa CRT de neón pone el combate en primer plano y rechaza la típica página de bienvenida vacía.
+    OWN-WORLD: azul tinta, cian eléctrico, lima alienígena y magenta sobre una consola pixelada con brillo contenido.
+    STORY: el jugador entiende en segundos cómo moverse, disparar, proteger sus vidas y superar la oleada.
+    FIRST VIEWPORT: título y marcadores arriba, tablero centrado, controles y estado debajo; el botón de reinicio permanece visible.
+    FORM: experiencia arcade directa, construida como un gabinete de una sola pantalla para jugar sin dependencias.
+    -->
+    <main class="arcade-shell">
+      <header class="topbar">
+        <div>
+          <p class="brand">GITHUB DEV DAYS // ARCADE</p>
+          <h1>SPACE INVADERS</h1>
+        </div>
+        <div class="status-lamp" aria-label="Estado del juego">
+          <span class="lamp-dot"></span>
+          <span id="statusText">LISTO PARA JUGAR</span>
+        </div>
+      </header>
+
+      <section class="game-layout" aria-label="Juego Space Invaders">
+        <aside class="score-panel">
+          <div class="score-block">
+            <span class="label">PUNTUACIÓN</span>
+            <strong id="score">000000</strong>
+          </div>
+          <div class="score-block">
+            <span class="label">RÉCORD</span>
+            <strong id="highScore">000000</strong>
+          </div>
+          <div class="score-block lives-block">
+            <span class="label">VIDAS</span>
+            <div id="lives" class="lives" aria-label="3 vidas">♥ ♥ ♥</div>
+          </div>
+        </aside>
+
+        <div class="board-frame">
+          <canvas id="gameCanvas" width="720" height="640" aria-label="Tablero del juego"></canvas>
+          <div id="overlay" class="overlay">
+            <p class="overlay-kicker">OLEADA 01</p>
+            <h2 id="overlayTitle">¿LISTO?</h2>
+            <p id="overlayMessage">Destruye a todos los invasores antes de que alcancen tu nave.</p>
+            <button id="startButton" class="primary-button" type="button">INICIAR PARTIDA</button>
+          </div>
+        </div>
+
+        <aside class="controls-panel">
+          <div class="controls-card">
+            <span class="label">CONTROLES</span>
+            <div class="control-row">
+              <span class="control-keys"><kbd>←</kbd><kbd>→</kbd></span>
+              <span>MOVER LA NAVE</span>
+            </div>
+            <div class="control-row">
+              <kbd>ESPACIO</kbd>
+              <span>DISPARAR</span>
+            </div>
+            <div class="control-row">
+              <kbd>R</kbd>
+              <span>REINICIAR PARTIDA</span>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="footer-bar">
+        <span>PROTEGE LA TIERRA</span>
+        <button id="restartButton" class="text-button" type="button">REINICIAR [R]</button>
+        <span>HECHO CON HTML + JS</span>
+      </footer>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
