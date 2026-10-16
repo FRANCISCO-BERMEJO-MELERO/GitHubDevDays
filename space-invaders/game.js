@@ -49,6 +49,7 @@ function createInvaders() {
 function createGame() {
   return {
     running: false,
+    paused: false,
     over: false,
     won: false,
     score: 0,
@@ -102,8 +103,15 @@ function startGame() {
   animationFrame = requestAnimationFrame(loop);
 }
 
+function setPaused(paused) {
+  if (!game.running || game.over) return;
+  game.paused = paused;
+  statusElement.textContent = paused ? "PARTIDA EN PAUSA" : "PARTIDA EN CURSO";
+}
+
 function endGame(won) {
   game.running = false;
+  game.paused = false;
   game.over = true;
   game.won = won;
   const previousHighScore = Number(localStorage.getItem(highScoreKey) || 0);
@@ -281,12 +289,26 @@ function draw() {
     ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.22, game.flash)})`;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
   }
+
+  if (game.paused) {
+    ctx.fillStyle = "rgba(5, 9, 22, 0.64)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = "#c7f44a";
+    ctx.font = '28px "Press Start 2P"';
+    ctx.textAlign = "center";
+    ctx.fillText("PAUSA", WIDTH / 2, HEIGHT / 2);
+  }
 }
 
 function loop(timestamp) {
   const delta = Math.min(0.05, (timestamp - lastTime) / 1000);
   lastTime = timestamp;
   if (!game.running) return;
+  if (game.paused) {
+    draw();
+    animationFrame = requestAnimationFrame(loop);
+    return;
+  }
 
   updatePlayer(delta);
   updateBullets(delta);
@@ -300,7 +322,12 @@ function loop(timestamp) {
 
 function handleKeyDown(event) {
   const key = event.code === "Space" ? "Space" : event.key;
-  if (["ArrowLeft", "ArrowRight", "Space"].includes(key)) event.preventDefault();
+  const loweredKey = key.toLowerCase();
+  if (["ArrowLeft", "ArrowRight", "Space"].includes(key) || loweredKey === "p") event.preventDefault();
+  if (loweredKey === "p" && !event.repeat) {
+    setPaused(!game.paused);
+    return;
+  }
   keys.add(key);
   if (key.toLowerCase() === "r") startGame();
 }
