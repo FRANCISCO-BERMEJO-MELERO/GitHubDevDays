@@ -9,16 +9,20 @@ const overlayTitle = document.querySelector("#overlayTitle");
 const overlayMessage = document.querySelector("#overlayMessage");
 const startButton = document.querySelector("#startButton");
 const restartButton = document.querySelector("#restartButton");
+const soundToggleButton = document.querySelector("#soundToggleButton");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const keys = new Set();
 const colors = ["#c7f44a", "#4ee7ff", "#ff5bad"];
 const highScoreKey = "space-invaders-high-score";
+const audioMutedKey = "space-invaders-audio-muted";
 
 let animationFrame;
 let lastTime = 0;
 let game;
+let isAudioMuted = localStorage.getItem(audioMutedKey) === "true";
+let audioContext;
 
 function createInvaders() {
   const invaders = [];
@@ -91,6 +95,52 @@ function updateHud() {
   livesElement.setAttribute("aria-label", `${game.lives} vidas`);
 }
 
+function updateSoundToggleButton() {
+  const label = isAudioMuted ? "SONIDO: SILENCIADO" : "SONIDO: ACTIVO";
+  soundToggleButton.textContent = label;
+  soundToggleButton.setAttribute("aria-pressed", String(isAudioMuted));
+  soundToggleButton.setAttribute("aria-label", isAudioMuted ? "Activar sonidos" : "Silenciar sonidos");
+}
+
+function getAudioContext() {
+  if (audioContext) return audioContext;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  audioContext = new AudioContextClass();
+  return audioContext;
+}
+
+function playSound(frequency, duration, type = "square", volume = 0.03) {
+  if (isAudioMuted) return;
+  const context = getAudioContext();
+  if (!context) return;
+
+  if (context.state === "suspended") {
+    context.resume();
+  }
+
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, now);
+  gainNode.gain.setValueAtTime(0.0001, now);
+  gainNode.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + duration);
+}
+
+function toggleSound() {
+  isAudioMuted = !isAudioMuted;
+  localStorage.setItem(audioMutedKey, String(isAudioMuted));
+  updateSoundToggleButton();
+}
+
 function startGame() {
   cancelAnimationFrame(animationFrame);
   game = createGame();
@@ -99,6 +149,7 @@ function startGame() {
   overlay.classList.add("is-hidden");
   statusElement.textContent = "PARTIDA EN CURSO";
   updateHud();
+  playSound(520, 0.08, "triangle", 0.035);
   animationFrame = requestAnimationFrame(loop);
 }
 
@@ -117,6 +168,7 @@ function endGame(won) {
     "JUGAR DE NUEVO",
   );
   updateHud();
+  playSound(won ? 660 : 220, 0.22, won ? "triangle" : "sawtooth", 0.04);
 }
 
 function shoot() {
@@ -129,6 +181,7 @@ function shoot() {
     speed: 520,
   });
   game.player.cooldown = 0.25;
+  playSound(760, 0.06, "square", 0.02);
 }
 
 function hitTest(a, b) {
@@ -210,6 +263,7 @@ function resolveCollisions() {
       bullet.y = -100;
       game.score += (4 - invader.row) * 10;
       game.flash = 0.08;
+      playSound(340 + invader.row * 90, 0.07, "triangle", 0.022);
     });
   });
 
@@ -218,6 +272,7 @@ function resolveCollisions() {
     bullet.y = HEIGHT + 100;
     game.lives -= 1;
     game.flash = 0.16;
+    playSound(170, 0.1, "sawtooth", 0.03);
     if (game.lives <= 0) endGame(false);
   });
 
@@ -312,8 +367,10 @@ function handleKeyUp(event) {
 
 game = createGame();
 updateHud();
+updateSoundToggleButton();
 draw();
 startButton.addEventListener("click", startGame);
 restartButton.addEventListener("click", startGame);
+soundToggleButton.addEventListener("click", toggleSound);
 window.addEventListener("keydown", handleKeyDown);
 window.addEventListener("keyup", handleKeyUp);
