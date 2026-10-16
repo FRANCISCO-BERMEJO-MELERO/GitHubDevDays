@@ -17,12 +17,84 @@ const keys = new Set();
 const colors = ["#c7f44a", "#4ee7ff", "#ff5bad"];
 const highScoreKey = "space-invaders-high-score";
 const audioMutedKey = "space-invaders-audio-muted";
+const audioManager = createAudioManager();
 
 let animationFrame;
 let lastTime = 0;
 let game;
 let isAudioMuted = localStorage.getItem(audioMutedKey) === "true";
-let audioContext;
+
+function createAudioManager() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return {
+      unlock: () => {},
+      shoot: () => {},
+      hit: () => {},
+      win: () => {},
+      lose: () => {},
+    };
+  }
+
+  let context;
+  let unlocked = false;
+
+  function ensureContext() {
+    if (context) return context;
+    try {
+      context = new AudioContextClass();
+    } catch {
+      context = null;
+    }
+    return context;
+  }
+
+  function unlock() {
+    const ctx = ensureContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    unlocked = true;
+  }
+
+  function playTone({ frequency, duration, type = "square", volume = 0.08, delay = 0 }) {
+    const ctx = ensureContext();
+    if (!ctx || !unlocked || isAudioMuted) return;
+    const startTime = ctx.currentTime + delay;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.02);
+  }
+
+  return {
+    unlock,
+    shoot() {
+      playTone({ frequency: 780, duration: 0.08, type: "square", volume: 0.07 });
+    },
+    hit() {
+      playTone({ frequency: 220, duration: 0.12, type: "sawtooth", volume: 0.09 });
+    },
+    win() {
+      playTone({ frequency: 523, duration: 0.12, type: "triangle", volume: 0.07 });
+      playTone({ frequency: 659, duration: 0.12, type: "triangle", volume: 0.07, delay: 0.13 });
+      playTone({ frequency: 784, duration: 0.2, type: "triangle", volume: 0.08, delay: 0.26 });
+    },
+    lose() {
+      playTone({ frequency: 392, duration: 0.12, type: "sawtooth", volume: 0.08 });
+      playTone({ frequency: 294, duration: 0.14, type: "sawtooth", volume: 0.08, delay: 0.14 });
+      playTone({ frequency: 196, duration: 0.2, type: "sawtooth", volume: 0.09, delay: 0.3 });
+    },
+  };
+}
 
 function createInvaders() {
   const invaders = [];
@@ -103,39 +175,6 @@ function updateSoundToggleButton() {
   soundToggleButton.setAttribute("aria-label", isAudioMuted ? "Activar sonidos" : "Silenciar sonidos");
 }
 
-function getAudioContext() {
-  if (audioContext) return audioContext;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
-  audioContext = new AudioContextClass();
-  return audioContext;
-}
-
-function playSound(frequency, duration, type = "square", volume = 0.03) {
-  if (isAudioMuted) return;
-  const context = getAudioContext();
-  if (!context) return;
-
-  if (context.state === "suspended") {
-    context.resume();
-  }
-
-  const now = context.currentTime;
-  const oscillator = context.createOscillator();
-  const gainNode = context.createGain();
-
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, now);
-  gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.exponentialRampToValueAtTime(volume, now + 0.01);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-  oscillator.connect(gainNode);
-  gainNode.connect(context.destination);
-  oscillator.start(now);
-  oscillator.stop(now + duration);
-}
-
 function toggleSound() {
   isAudioMuted = !isAudioMuted;
   localStorage.setItem(audioMutedKey, String(isAudioMuted));
@@ -143,6 +182,7 @@ function toggleSound() {
 }
 
 function startGame() {
+  audioManager.unlock();
   cancelAnimationFrame(animationFrame);
   game = createGame();
   game.running = true;
@@ -150,7 +190,6 @@ function startGame() {
   overlay.classList.add("is-hidden");
   statusElement.textContent = "PARTIDA EN CURSO";
   updateHud();
-  playSound(520, 0.08, "triangle", 0.035);
   animationFrame = requestAnimationFrame(loop);
 }
 
@@ -175,8 +214,12 @@ function endGame(won) {
     won ? `Has limpiado el sector con ${formatScore(game.score)} puntos.` : `Puntuación final: ${formatScore(game.score)}. La Tierra necesita otra oportunidad.`,
     "JUGAR DE NUEVO",
   );
+  if (won) {
+    audioManager.win();
+  } else {
+    audioManager.lose();
+  }
   updateHud();
-  playSound(won ? 660 : 220, 0.22, won ? "triangle" : "sawtooth", 0.04);
 }
 
 function shoot() {
@@ -189,7 +232,7 @@ function shoot() {
     speed: 520,
   });
   game.player.cooldown = 0.25;
-  playSound(760, 0.06, "square", 0.02);
+  audioManager.shoot();
 }
 
 function hitTest(a, b) {
@@ -271,7 +314,7 @@ function resolveCollisions() {
       bullet.y = -100;
       game.score += (4 - invader.row) * 10;
       game.flash = 0.08;
-      playSound(340 + invader.row * 90, 0.07, "triangle", 0.022);
+      audioManager.hit();
     });
   });
 
@@ -280,7 +323,7 @@ function resolveCollisions() {
     bullet.y = HEIGHT + 100;
     game.lives -= 1;
     game.flash = 0.16;
-    playSound(170, 0.1, "sawtooth", 0.03);
+    audioManager.hit();
     if (game.lives <= 0) endGame(false);
   });
 
